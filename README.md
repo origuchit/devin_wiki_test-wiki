@@ -22,3 +22,4 @@
 - `config/remote.php`
 - `storage/` 配下の特定ディレクトリ
 
+Update README
