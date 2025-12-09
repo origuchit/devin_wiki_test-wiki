@@ -8,4 +8,3 @@ function validateEmail(email) {
 }
 
 module.exports = { formatDate, validateEmail };
-
