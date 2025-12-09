@@ -1,0 +1,113 @@
+name: Sync to Wiki Repository (Clean History)
+
+on:
+  schedule:
+    # 毎日 日本時間 12:00 (UTC 03:00) に実行
+    - cron: '0 3 * * *'
+  workflow_dispatch: # 手動実行用ボタン
+
+jobs:
+  sync-clean-push:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. ソースコードの取得
+      - name: Checkout source (Mirror)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 【安全対策A】メインリポジトリへの接続を物理的に切断
+      # これにより、この後の工程で間違ってメイン側にpushすることは不可能になります
+      - name: 🛡️ Safety Guard (Remove Origin)
+        run: |
+          echo "ソースリポジトリへの接続を解除しています..."
+          git remote remove origin
+          
+          # 確認: originが消えているかチェック
+          if git remote | grep -q "^origin$"; then
+            echo "❌ エラー: originの削除に失敗しました！"
+            exit 1
+          fi
+          echo "✅ originを削除しました。安全に処理を続行します。"
+
+      # 2. ツールインストール
+      - name: Install git-filter-repo
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-pip
+          pip install git-filter-repo
+          git-filter-repo --version
+
+      # 3. 履歴の浄化
+      - name: Clean History (Remove Secrets)
+        run: |
+          set -e
+          git config --global user.email "action@github.com"
+          git config --global user.name "Wiki Sync Action"
+
+          echo "🧹 リポジトリの履歴をクリーニング中..."
+
+          # --- 削除対象ファイルの設定 ---
+          # 追加要望のあった env系パターンを網羅しています
+          git filter-repo \
+            --path-glob '.env*' \
+            --path-glob 'env.*' \
+            --path-glob '.docker.env' \
+            --path-glob '**/*.pem' \
+            --path-glob '**/*.key' \
+            --path-glob '**/*.p12' \
+            --path-glob 'auth.json' \
+            --path '.ssh' \
+            --path-glob 'config/secrets.*' \
+            --path 'config/remote.php' \
+            --path 'storage/logs' \
+            --path 'storage/framework' \
+            --path 'storage/app/tmp' \
+            --path 'storage/app/private' \
+            --path 'storage/batch/logs' \
+            --invert-paths \
+            --force
+
+          echo "✨ リポジトリのサニタイズ（機密情報削除）が完了しました。"
+
+      # 4. SSHキーのセットアップ
+      - name: Setup SSH Key
+        env:
+          SSH_KEY: ${{ secrets.WIKI_SYNC_SSH_KEY }}
+        run: |
+          set -e
+          if [ -z "$SSH_KEY" ]; then
+            echo "❌ エラー: WIKI_SYNC_SSH_KEY シークレットが設定されていません"
+            exit 1
+          fi
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+          echo "✅ SSHキーのセットアップが完了しました。"
+
+      # 5. Wikiリポジトリへの強制プッシュ
+      - name: Push to Wiki Repo
+        env:
+          DEST_REPO: "git@github.com:dialog-inc/w3package_v2_devin_mimosa_test.git"
+        run: |
+          set -e
+          
+          # 既存のdestinationリモートがあれば削除
+          if git remote | grep -q "^destination$"; then
+            git remote remove destination
+          fi
+          
+          # リモート追加（originではなくdestinationとして追加）
+          git remote add destination "$DEST_REPO"
+          
+          # 情報表示
+          echo "📦 Wikiリポジトリへプッシュしています..."
+          echo "   送信先: $DEST_REPO"
+          
+          # Push実行
+          # destination にしか送れない状態になっています
+          git push --mirror --force destination
+          
+          echo "✅ Wikiリポジトリへのプッシュに成功しました"
+
