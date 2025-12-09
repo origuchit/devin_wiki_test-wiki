@@ -77,6 +77,10 @@ jobs:
           git config --global user.name "Wiki Sync Action"
 
           echo "🧹 リポジトリの履歴をクリーニング中..."
+          
+          # 削除前の履歴を確認（デバッグ用）
+          echo "📋 削除前の履歴に含まれる機密ファイル:"
+          git log --all --full-history --name-only --pretty=format: | grep -E '(\.env|credentials|secrets|keys|\.pem|\.key|\.p12|auth\.json)' | sort -u | head -20 || echo "  (なし)"
 
           # --- 削除対象ファイルの設定 ---
           # 追加要望のあった env系パターンを網羅しています
@@ -104,6 +108,17 @@ jobs:
             --path 'storage/batch/logs' \
             --invert-paths \
             --force
+
+          echo ""
+          echo "📋 削除後の履歴確認:"
+          echo "   機密ファイルが履歴に残っていないか確認中..."
+          REMAINING=$(git log --all --full-history --name-only --pretty=format: | grep -E '(\.env|credentials|secrets|keys|\.pem|\.key|\.p12|auth\.json)' | sort -u || true)
+          if [ -n "$REMAINING" ]; then
+            echo "⚠️  警告: 以下のファイルが履歴に残っています:"
+            echo "$REMAINING" | sed 's/^/  - /'
+          else
+            echo "  ✅ 機密ファイルは履歴から削除されました"
+          fi
 
           echo "✨ リポジトリのサニタイズ（機密情報削除）が完了しました。"
 
