@@ -89,7 +89,7 @@ jobs:
       # 5. Wikiリポジトリへの強制プッシュ
       - name: Push to Wiki Repo
         env:
-          DEST_REPO: "git@github.com:dialog-inc/w3package_v2_devin_mimosa_test.git"
+          DEST_REPO: "git@github.com:origuchit/devin_wiki_test-wiki.git"
         run: |
           set -e
           
