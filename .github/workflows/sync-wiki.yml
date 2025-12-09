@@ -89,15 +89,24 @@ jobs:
             --path-glob 'env.*' \
             --path-glob '.docker.env' \
             --path-glob '**/*.pem' \
+            --path-glob '*.pem' \
             --path-glob '**/*.key' \
+            --path-glob '*.key' \
             --path-glob '**/*.p12' \
+            --path-glob '*.p12' \
             --path-glob 'auth.json' \
             --path-glob '**/*credentials*.json' \
+            --path-glob '*credentials*.json' \
             --path-glob '**/*secrets*.json' \
+            --path-glob '*secrets*.json' \
             --path-glob '**/*keys*.json' \
+            --path-glob '*keys*.json' \
             --path-glob '**/*secret*.json' \
+            --path-glob '*secret*.json' \
             --path-glob '**/*password*.json' \
+            --path-glob '*password*.json' \
             --path-glob '**/*token*.json' \
+            --path-glob '*token*.json' \
             --path '.ssh' \
             --path-glob 'config/secrets.*' \
             --path 'config/remote.php' \
