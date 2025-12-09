@@ -22,13 +22,16 @@ jobs:
           git fetch --all --tags
           echo "✅ すべてのブランチとタグを取得しました"
 
-      # 3. リモートブランチをローカルブランチとして作成
+      # 3. リモートブランチをローカルブランチとして作成（master/release/developを含むブランチのみ）
       - name: Create local branches from remote branches
         run: |
           echo "📋 リモートブランチをローカルブランチとして作成中..."
+          echo "   ※ master、release、developを含むブランチのみを対象とします"
           
           # リモートブランチを取得（origin/を除く）
-          REMOTE_BRANCHES=$(git branch -r | grep -v 'origin/HEAD' | sed 's|origin/||' | xargs)
+          # master、release、developを含むブランチのみをフィルタリング
+          REMOTE_BRANCHES=$(git branch -r | grep -v 'origin/HEAD' | sed 's|origin/||' | \
+            grep -E '(master|release|develop|main)' | xargs)
           
           for branch in $REMOTE_BRANCHES; do
             # mainブランチは既に存在するのでスキップ
@@ -45,7 +48,7 @@ jobs:
           echo "📋 ローカルブランチ一覧:"
           git branch --list
           echo ""
-          echo "✅ すべてのブランチをローカルに作成しました"
+          echo "✅ 対象ブランチをローカルに作成しました"
 
       # 【安全対策A】メインリポジトリへの接続を物理的に切断
       # これにより、この後の工程で間違ってメイン側にpushすることは不可能になります
