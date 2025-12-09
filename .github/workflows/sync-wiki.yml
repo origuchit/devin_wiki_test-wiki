@@ -88,11 +88,15 @@ jobs:
             --path-glob '**/*.key' \
             --path-glob '**/*.p12' \
             --path-glob 'auth.json' \
+            --path-glob '**/*credentials*.json' \
+            --path-glob '**/*secrets*.json' \
+            --path-glob '**/*keys*.json' \
+            --path-glob '**/*secret*.json' \
+            --path-glob '**/*password*.json' \
+            --path-glob '**/*token*.json' \
             --path '.ssh' \
             --path-glob 'config/secrets.*' \
             --path 'config/remote.php' \
-            --path-glob 'temp-credentials.json' \
-            --path-glob 'config/api-keys.json' \
             --path 'storage/logs' \
             --path 'storage/framework' \
             --path 'storage/app/tmp' \
