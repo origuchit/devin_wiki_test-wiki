@@ -10,11 +10,20 @@ jobs:
   sync-clean-push:
     runs-on: ubuntu-latest
     steps:
-      # 1. ソースコードの取得
+      # 1. ソースコードの取得（全ブランチ・全履歴）
       - name: Checkout source (Mirror)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          fetch: all  # すべてのブランチとタグを取得
+
+      # ブランチ確認
+      - name: Verify all branches fetched
+        run: |
+          echo "📋 取得されたブランチ一覧:"
+          git branch -a
+          echo ""
+          echo "📊 ブランチ数: $(git branch -a | wc -l)"
 
       # 【安全対策A】メインリポジトリへの接続を物理的に切断
       # これにより、この後の工程で間違ってメイン側にpushすることは不可能になります
@@ -104,8 +113,15 @@ jobs:
           # 情報表示
           echo "📦 Wikiリポジトリへプッシュしています..."
           echo "   送信先: $DEST_REPO"
+          echo ""
+          echo "📋 プッシュされるブランチ:"
+          git branch --list | sed 's/^/  - /'
+          echo ""
+          echo "📋 プッシュされるタグ:"
+          git tag --list | sed 's/^/  - /' || echo "  (タグなし)"
+          echo ""
           
-          # Push実行
+          # Push実行（すべてのブランチとタグをプッシュ）
           # destination にしか送れない状態になっています
           git push --mirror --force destination
           
