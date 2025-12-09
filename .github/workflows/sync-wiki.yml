@@ -1,4 +1,4 @@
-name: Sync to Wiki Repository (Clean History)
+name: Wikiリポジトリへの同期（履歴クリーン）
 
 on:
   schedule:
