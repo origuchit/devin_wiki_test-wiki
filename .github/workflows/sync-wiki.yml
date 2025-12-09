@@ -91,6 +91,8 @@ jobs:
             --path '.ssh' \
             --path-glob 'config/secrets.*' \
             --path 'config/remote.php' \
+            --path-glob 'temp-credentials.json' \
+            --path-glob 'config/api-keys.json' \
             --path 'storage/logs' \
             --path 'storage/framework' \
             --path 'storage/app/tmp' \
