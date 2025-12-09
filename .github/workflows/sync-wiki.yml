@@ -10,20 +10,42 @@ jobs:
   sync-clean-push:
     runs-on: ubuntu-latest
     steps:
-      # 1. ソースコードの取得（全ブランチ・全履歴）
+      # 1. ソースコードの取得（全履歴）
       - name: Checkout source (Mirror)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          fetch: all  # すべてのブランチとタグを取得
 
-      # ブランチ確認
-      - name: Verify all branches fetched
+      # 2. すべてのブランチとタグを取得
+      - name: Fetch all branches and tags
         run: |
-          echo "📋 取得されたブランチ一覧:"
-          git branch -a
+          git fetch --all --tags
+          echo "✅ すべてのブランチとタグを取得しました"
+
+      # 3. リモートブランチをローカルブランチとして作成
+      - name: Create local branches from remote branches
+        run: |
+          echo "📋 リモートブランチをローカルブランチとして作成中..."
+          
+          # リモートブランチを取得（origin/を除く）
+          REMOTE_BRANCHES=$(git branch -r | grep -v 'origin/HEAD' | sed 's|origin/||' | xargs)
+          
+          for branch in $REMOTE_BRANCHES; do
+            # mainブランチは既に存在するのでスキップ
+            if [ "$branch" != "main" ]; then
+              echo "  作成中: $branch"
+              git checkout -b "$branch" "origin/$branch" 2>/dev/null || echo "    (既に存在または作成済み)"
+            fi
+          done
+          
+          # mainブランチに戻る
+          git checkout main
+          
           echo ""
-          echo "📊 ブランチ数: $(git branch -a | wc -l)"
+          echo "📋 ローカルブランチ一覧:"
+          git branch --list
+          echo ""
+          echo "✅ すべてのブランチをローカルに作成しました"
 
       # 【安全対策A】メインリポジトリへの接続を物理的に切断
       # これにより、この後の工程で間違ってメイン側にpushすることは不可能になります
@@ -39,7 +61,7 @@ jobs:
           fi
           echo "✅ originを削除しました。安全に処理を続行します。"
 
-      # 2. ツールインストール
+      # 4. ツールインストール
       - name: Install git-filter-repo
         run: |
           sudo apt-get update
@@ -47,7 +69,7 @@ jobs:
           pip install git-filter-repo
           git-filter-repo --version
 
-      # 3. 履歴の浄化
+      # 5. 履歴の浄化
       - name: Clean History (Remove Secrets)
         run: |
           set -e
@@ -79,7 +101,7 @@ jobs:
 
           echo "✨ リポジトリのサニタイズ（機密情報削除）が完了しました。"
 
-      # 4. SSHキーのセットアップ
+      # 6. SSHキーのセットアップ
       - name: Setup SSH Key
         env:
           SSH_KEY: ${{ secrets.WIKI_SYNC_SSH_KEY }}
@@ -95,7 +117,7 @@ jobs:
           ssh-keyscan github.com >> ~/.ssh/known_hosts
           echo "✅ SSHキーのセットアップが完了しました。"
 
-      # 5. Wikiリポジトリへの強制プッシュ
+      # 7. Wikiリポジトリへの強制プッシュ
       - name: Push to Wiki Repo
         env:
           DEST_REPO: "git@github.com:origuchit/devin_wiki_test-wiki.git"
