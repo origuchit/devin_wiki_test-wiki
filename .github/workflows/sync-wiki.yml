@@ -22,18 +22,85 @@ jobs:
           git fetch --all --tags
           echo "✅ すべてのブランチとタグを取得しました"
 
-      # 3. リモートブランチをローカルブランチとして作成（master/release/developを含むブランチのみ）
+      # 3. リモートブランチをローカルブランチとして作成（master/release/developを含むブランチのみ、日付付きは最新のみ）
       - name: Create local branches from remote branches
         run: |
           echo "📋 リモートブランチをローカルブランチとして作成中..."
           echo "   ※ master、release、developを含むブランチのみを対象とします"
+          echo "   ※ 日付付きブランチ（例: develop/r20240326）は最新から2つを取得します"
           
           # リモートブランチを取得（origin/を除く）
-          # master、release、developを含むブランチのみをフィルタリング
-          REMOTE_BRANCHES=$(git branch -r | grep -v 'origin/HEAD' | sed 's|origin/||' | \
-            grep -E '(master|release|develop|main)' | xargs)
+          ALL_BRANCHES=$(git branch -r | grep -v 'origin/HEAD' | sed 's|origin/||' | \
+            grep -E '(master|release|develop|main)')
           
-          for branch in $REMOTE_BRANCHES; do
+          # 日付なしのブランチ（master、develop、release、main）を取得
+          BASE_BRANCHES=$(echo "$ALL_BRANCHES" | grep -vE '/(develop|release)/r[0-9]' | grep -E '(master|develop|release|main)$' || true)
+          
+          # 日付付きブランチをグループ化して最新から2つを取得
+          # develop / release を含み、ブランチ名内に日付(YYYYMMDD)が含まれるものを対象
+          # 例: develop/r20240326, develop/20240326_xxx, release/fix_2024/12/24_release 等
+          LATEST_DATED_BRANCHES=""
+          DATED_BRANCHES=$(echo "$ALL_BRANCHES" | grep -E '(develop|release)' || true)
+          if [ -n "$DATED_BRANCHES" ]; then
+            # デバッグ出力（上位5件）
+            echo "📅 検出された develop/release を含むブランチ例:"
+            echo "$DATED_BRANCHES" | head -5 | sed 's/^/  - /'
+            echo ""
+            
+            LATEST_DATED_BRANCHES=$(echo "$DATED_BRANCHES" | \
+              awk -F'/' '
+              {
+                branch = $0
+                # develop または release を含むものだけ対象
+                if (index(branch, "develop") == 0 && index(branch, "release") == 0) next
+                
+                # プレフィックスは先頭セグメント（案件名想定）
+                prefix = $1
+                
+                # ブランチ名から数字だけを抽出し、先頭8桁を日付候補として扱う
+                digits = branch
+                gsub(/[^0-9]/, "", digits)
+                if (length(digits) < 8) next
+                date = substr(digits, 1, 8)
+                
+                # YYYYMMDD の形式かつ 20xx 年に限定
+                if (date !~ /^20[0-9]{6}$/) next
+                
+                # プレフィックスごとに日付->ブランチ名を保持
+                branches[prefix, date] = branch
+                dates[prefix] = dates[prefix] " " date
+              }
+              END {
+                for (p in dates) {
+                  split(dates[p], arr, " ")
+                  n = asort(arr)
+                  count = 0
+                  for (i = n; i >= 1 && count < 2; i--) {
+                    d = arr[i]
+                    if (d == "") continue
+                    print branches[p, d]
+                    count++
+                  }
+                }
+              }')
+          fi
+          
+          # すべての対象ブランチを結合
+          TARGET_BRANCHES=$(echo -e "$BASE_BRANCHES\n$LATEST_DATED_BRANCHES" | grep -v '^$' | sort -u)
+          
+          BRANCH_COUNT=$(echo "$TARGET_BRANCHES" | grep -c . || echo "0")
+          echo ""
+          echo "📋 対象ブランチ（${BRANCH_COUNT}個）:"
+          echo "$TARGET_BRANCHES" | sed 's/^/  - /'
+          echo ""
+          
+          # mainブランチが存在するか確認
+          MAIN_EXISTS=false
+          if echo "$TARGET_BRANCHES" | grep -q "^main$"; then
+            MAIN_EXISTS=true
+          fi
+          
+          for branch in $(echo "$TARGET_BRANCHES"); do
             # mainブランチは既に存在するのでスキップ
             if [ "$branch" != "main" ]; then
               echo "  作成中: $branch"
@@ -41,8 +108,17 @@ jobs:
             fi
           done
           
-          # mainブランチに戻る
-          git checkout main
+          # mainブランチに戻る（存在する場合）
+          if [ "$MAIN_EXISTS" = true ]; then
+            git checkout main 2>/dev/null || echo "⚠️  mainブランチへの切り替えに失敗しました"
+          else
+            # mainブランチが存在しない場合、最初のブランチに戻る
+            FIRST_BRANCH=$(echo "$TARGET_BRANCHES" | head -1)
+            if [ -n "$FIRST_BRANCH" ]; then
+              echo "⚠️  mainブランチが存在しないため、最初のブランチ（$FIRST_BRANCH）に戻ります"
+              git checkout "$FIRST_BRANCH" 2>/dev/null || echo "⚠️  ブランチへの切り替えに失敗しました"
+            fi
+          fi
           
           echo ""
           echo "📋 ローカルブランチ一覧:"
