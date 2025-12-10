@@ -167,6 +167,8 @@ jobs:
             --path-glob '.env*' \
             --path-glob 'env.*' \
             --path-glob '.docker.env' \
+            --path-glob '.docker.env.example' \
+            --path-glob '*.env.example' \
             --path-glob '**/*.pem' \
             --path-glob '*.pem' \
             --path-glob '**/*.key' \
@@ -174,6 +176,9 @@ jobs:
             --path-glob '**/*.p12' \
             --path-glob '*.p12' \
             --path-glob 'auth.json' \
+            --path 'tools/auto-if/hulft/setup/etc/chrony.keys' \
+            --path 'tools/provisioning/bootstrapping/aws/cdk/.env.example' \
+            --path 'tools/provisioning/orchestration/vendor/bundler/ruby/2.6.0/gems/multi_json-1.15.0/lib/multi_json/convertible_hash_keys.rb' \
             --path-glob '**/*credentials*.json' \
             --path-glob '*credentials*.json' \
             --path-glob '**/*secrets*.json' \
@@ -200,7 +205,10 @@ jobs:
           echo ""
           echo "📋 削除後の履歴確認:"
           echo "   機密ファイルが履歴に残っていないか確認中..."
-          REMAINING=$(git log --all --full-history --name-only --pretty=format: | grep -E '(\.env|credentials|secrets|keys|\.pem|\.key|\.p12|auth\.json)' | sort -u || true)
+          REMAINING=$(git log --all --full-history --name-only --pretty=format: | \
+            grep -E '(\.env|credentials|secrets|keys|\.pem|\.key|\.p12|auth\.json)' | \
+            grep -v '^\\.github/workflows/verify-secrets\\.yml$' | \
+            sort -u || true)
           if [ -n "$REMAINING" ]; then
             echo "⚠️  警告: 以下のファイルが履歴に残っています:"
             echo "$REMAINING" | sed 's/^/  - /'
