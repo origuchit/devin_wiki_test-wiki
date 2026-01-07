@@ -1,9 +1,6 @@
 name: Wikiリポジトリへの同期（履歴クリーン）
 
 on:
-  schedule:
-    # 毎日 日本時間 12:00 (UTC 03:00) に実行
-    - cron: '0 3 * * *'
   workflow_dispatch: # 手動実行用ボタン
 
 jobs:
